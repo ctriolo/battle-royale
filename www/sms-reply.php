@@ -31,7 +31,7 @@
         $reply = "Welcome to Battle Royale! What is the name of your game? ";
         $reply .= "e.g. PrincetonStartupWeekend2011 or psw2011";
                 
-        $_SESSION['awaiting_game_name'] = 1;
+        $_SESSION['awaiting_game_name'] = true;
 
 	send_reply($reply);
     }
@@ -42,7 +42,7 @@
         $reply = "Your game has been created with name " . $game_name . ". ";
         $reply .= "Please tell players to text JOIN " . $game_name . " to enter game.";
         
-        $_SESSION['awaiting_game_name'] = 0;
+        $_SESSION['awaiting_game_name'] = false;
 
 	send_reply($reply);
     }
