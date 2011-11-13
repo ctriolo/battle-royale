@@ -140,7 +140,7 @@
             ; // ERROR
         
         $_SESSION['join_dialog'] = true;
-        $_SESSION['game_name'] = tokens[1];
+        $_SESSION['game_name'] = $tokens[1];
         
         // TODO_CHRIS::
         // $person = get_person($from);
