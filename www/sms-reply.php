@@ -1,8 +1,6 @@
 <?php
 
-
-
-    $keywords = " CREATE JOIN START KILL";
+    $keywords = " CREATE JOIN BEGIN KILL";
     $to = $_REQUEST['To'];
     $from = $_REQUEST['From'];
     $body = $_REQUEST['Body'];
@@ -185,16 +183,16 @@
     // instantiate a new Twilio Rest Client
 	$client = new Services_Twilio($AccountSid, $AuthToken);
     
-    $tokens[0] = "START";
-    if ( $tokens[0] == "START" )
+
+    if ( $tokens[0] == "BEGIN" )
     {
         // TODO_CHRIS:
         // get the admin; make sure $from is the $admin
         
         $players = array("+13057736239" => "Rafi",
-                         //"+16094238157" => "Emily",
-                         //"+16313552173" => "Chris",
-                         //"+16097513474" => "Jess",
+                         "+16094238157" => "Emily",
+                         "+16313552173" => "Chris",
+                         "+16097513474" => "Jess",
                          );
         
         $numbers; $names;
@@ -221,15 +219,6 @@
             
             if (!$to)
                 $to = "+15415267609";
-            
-            /*
-            echo $to;
-            $a = substr($to, 2, 3);
-            $b = substr($to, 5, 3);
-            $c = substr($to, 8, 4);
-            $from = $a . "-" . $b . "-" . $c;
-            echo $to;
-            */
             
             $msg =  "Hello, " . $name . ". Your target is " . $target . ". ";
             $msg .= "If you assassinate them, reply with KILL. Happy hunting!";
