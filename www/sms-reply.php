@@ -16,8 +16,11 @@ $from = "+13057736239";
 $body = "create game";
 
 // CREATE GAME
-if ($body == "create game") {
-  fopen("../data/persons/" . $from, "w");
+if ($body == "CREATE") 
+{
+  // TODO: get person record
+
+  
 
   $reply = "Welcome to KAOS! Please enter a group password ";
   $reply .= "that others will use to join your game. ";
