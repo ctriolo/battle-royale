@@ -3,7 +3,12 @@
     $keywords = "CREATE JOIN START KILL";    
     $from = $_REQUEST['From'];
     $body = $_REQUEST['Body'];
-
+    $body = trim($body);
+    
+    $tokens = $tokens = preg_split("/\s+/", $body);
+    
+    
+    
     session_start();
     
     function send_reply($str) {
@@ -18,6 +23,13 @@
     
     
     $person_name = "";
+    
+    $awaiting = false;
+    if ($_SESSION['awaiting_person_name'] || $_SESSION['awaiting_game_name'])
+        $awaiting = true;
+    if ( $awaiting && strpos($keywords, $tokens[0]) != false )
+        send_reply(tokens[0] . " not a valid name");
+        
     
     //$from = "+13057736239";
     //$body = "CREATE";
@@ -54,14 +66,9 @@
      *   RECEIVE CREATE    *
      *                     *
      * * * * * * * * * * * */
-    if ( substr($body, 0, 6) == "CREATE") 
+    if ( $tokens[0] == "CREATE") 
     {
-        if ($_SESSION['awaiting_person_name'])
-            send_reply("CREATE not a valid name. Try again.");
-        if ($_SESSION['awaiting_game_name'])
-            send_reply("CREATE not a valid name. Try again.");
-        
-        $_SESSION['awaiting_create_game'] = true;
+        $_SESSION['create_dialog'] = true;
 
         // TODO_CHRIS::
         // $person = get_person($from);
@@ -80,7 +87,7 @@
      *   REQUEST GAME TITLE  *
      *                       *
      * * * * * * * * * * * * */
-    if ( $_SESSION['awaiting_create_game'] ) 
+    if ( $_SESSION['create_dialog'] ) 
     {
         // TODO_CHRIS
         // put_participant($person, ADMIN)
@@ -113,6 +120,38 @@
 
         send_reply($reply);
     }
+    
+    /* * * * * * * * * * *
+     *                   *
+     *   RECEIVE JOIN    *
+     *                   *
+     * * * * * * * * * * */
+    /*
+    if ( $tokens[0] == "JOIN") 
+    {
+        if ($_SESSION['awaiting_person_name'])
+            send_reply("JOIN not a valid name. Try again.");
+        if ($_SESSION['awaiting_game_name'])
+            send_reply("JOIN not a valid name. Try again.");
+                
+        $tokens = preg_split ("/\s+/", $body);
+        if (count($tokens) != 2)
+            ;
+        
+        $_SESSION['awaiting_join_game'] = true;
+        
+        // TODO_CHRIS::
+        // $person = get_person($from);
+        // if (!person)
+        request_name(); // if no entry, get person's name
+        
+        // TODO_CHRIS::
+        // $person_name = $person.name;
+        
+        // if ( $person.status == "ACTIVE" )
+        // send_reply("are you sure?");
+    }
+    */
     
     // JOIN GAME
     // START GAME
