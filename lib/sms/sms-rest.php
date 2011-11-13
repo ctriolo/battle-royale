@@ -1,7 +1,7 @@
 <?php
 
 	// include the PHP TwilioRest library
-	require "Services/Twilio.php";
+	require "../twilio-php/Services/Twilio.php";
 
 	// set our AccountSid and AuthToken
 	$AccountSid = "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";

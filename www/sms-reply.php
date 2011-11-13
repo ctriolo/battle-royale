@@ -176,6 +176,69 @@
         send_reply($reply);
     }
     
+    // include the PHP TwilioRest library
+	require "../lib/twilio-php/Services/Twilio.php";
+    // set our AccountSid and AuthToken
+	$AccountSid = "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+	$AuthToken = "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY";
+    // instantiate a new Twilio Rest Client
+	$client = new Services_Twilio($AccountSid, $AuthToken);
+    
+    $tokens[0] = "START";
+    if ( $tokens[0] == "START" )
+    {
+        // TODO_CHRIS:
+        // get the admin; make sure $from is the $admin
+        
+        $players = array("+13057736239" => "Rafi",
+                         //"+16094238157" => "Emily",
+                         //"+16313552173" => "Chris",
+                         //"+16097513474" => "Jess",
+                         );
+        
+        $numbers; $names;
+        
+        $num = count($players);
+        $i = 0;
+        foreach ($players as $number => $name) {
+            $numbers[$i] = $number;
+            $names[$i] = $name;
+            $i++;
+        }
+        
+        $index = range(0, $num-1);
+        shuffle($index);
+        
+        for ($i = 0; $i < $num; $i++) {
+            $j = $index[$i];
+            
+            $name = $names[$j];
+            $number = $numbers[$j];
+            
+            $k = $index[ $i+1 == $num ? 0 : $i+1 ];
+            $target = $names[$k];
+            
+            $msg =  "Hello, " . $name . ". Your target is " . $target . ". ";
+            $msg .= "If you assassinate them, reply with KILL. Happy hunting";
+            $sms = $client->account->sms_messages->create(
+                                                          "YYY-YYY-YYYY",
+                                                          $number,
+                                                          "Hey $name, Monkey Party at 6PM. Bring Bananas!"
+                                                          );
+            
+            echo "$name of $number targeting $target\n";
+        }
+        
+        
+        exit();
+    }
+    
+    // if START
+    // if not admin, invalid command
+    // get list of numbers
+    // randomize, assign targets
+    // send out message
+    
     // JOIN GAME
     // START GAME
     // REPORT KILL
