@@ -1,6 +1,8 @@
 <?php
 
-    $keywords = "CREATE JOIN START KILL";    
+
+
+    $keywords = " CREATE JOIN START KILL";    
     $from = $_REQUEST['From'];
     $body = $_REQUEST['Body'];
     $body = trim($body);
@@ -20,16 +22,17 @@
         exit();
     }
     
-    
+
     
     $person_name = "";
     
     $awaiting = false;
     if ($_SESSION['awaiting_person_name'] || $_SESSION['awaiting_game_name'])
         $awaiting = true;
-    if ( $awaiting && strpos($keywords, $tokens[0]) != false )
-        send_reply(tokens[0] . " not a valid name");
+    if ( $awaiting && strpos($keywords, $tokens[0]) )
+        send_reply($tokens[0] . " not a valid name");
         
+
     
     //$from = "+13057736239";
     //$body = "CREATE";
