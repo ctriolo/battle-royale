@@ -19,21 +19,37 @@
     //$from = "+13057736239";
     //$body = "CREATE";
     
-    
-    // CREATE GAME
-    if ($body == "CREATE") {
+    /* * * * * * * * * *
+     *                 *
+     *   CREATE GAME   *
+     *                 *
+     * * * * * * * * * */
+    if ( substr($body, 0, 6) == "CREATE") {
         // IF ENTRY EXISTS AND IS ACTIVE
         // ARE YOU SURE?
         
         // IF NO ENTRY FOR THAT PERSON
         // GET NAME
         
-        $reply = "Welcome to Battle Royale! What is the name of your game? ";
-        $reply .= "e.g. PrincetonStartupWeekend2011 or psw2011";
-                
+        $reply = "Welcome to Battle Royale! What is your name?";
+        $_SESSION['awaiting_person_name'] = true;
+        
+        send_reply($reply);
+    }
+    
+    
+    $apn = $_SESSION['awaiting_person_name'];
+    if ( strlen($apn) && $apn ) {
+        $person_name = $body;
+        
+        $reply = "Welcome, " . $person_name . "! ";
+        $reply .= "What is the name of your game? ";
+        $reply .= "e.g. PtonStartupWeekend2011 or psw2011";
+        
+        $_SESSION['awaiting_person_name'] = false;
         $_SESSION['awaiting_game_name'] = true;
-
-	send_reply($reply);
+        
+        send_reply($reply);
     }
     
     $agn = $_SESSION['awaiting_game_name'];
@@ -44,7 +60,7 @@
         
         $_SESSION['awaiting_game_name'] = false;
 
-	send_reply($reply);
+        send_reply($reply);
     }
     
     // JOIN GAME
@@ -52,7 +68,7 @@
     // REPORT KILL
     // ANNOUNCE
     
-    send_reply($name .= ", thanks for the message!");
+    send_reply("That's nice...");
     
 ?>
 
