@@ -96,7 +96,7 @@
         $reply .= "What is the name of your game? ";
         $reply .= "e.g. PtonStartupWeekend2011 or psw2011";
         
-        $_SESSION['awaiting_create_game'] = false;
+        $_SESSION['create_dialog'] = false;
         $_SESSION['awaiting_game_name'] = true;
         
         send_reply($reply);
