@@ -1,7 +1,11 @@
 <?php
 
-    session_start();
+    $keywords = "CREATE JOIN START KILL";    
+    $from = $_REQUEST['From'];
+    $body = $_REQUEST['Body'];
 
+    session_start();
+    
     function send_reply($str) {
         header("content-type: text/xml");
         echo "<?xml version=\"1.0\" encoding=\"UTF-8\"" . chr(63) . ">\n";
@@ -11,50 +15,97 @@
         exit();
     }
     
-    $keywords = array("CREATE", "JOIN", "START", "KILL", "YES", "NO");
     
-    $from = $_REQUEST['From'];
-    $body = $_REQUEST['Body'];
+    
+    $person_name = "";
     
     //$from = "+13057736239";
     //$body = "CREATE";
     
-    /* * * * * * * * * *
-     *                 *
-     *   CREATE GAME   *
-     *                 *
-     * * * * * * * * * */
-    if ( substr($body, 0, 6) == "CREATE") {
-        // IF ENTRY EXISTS AND IS ACTIVE
-        // ARE YOU SURE?
-        
-        // IF NO ENTRY FOR THAT PERSON
-        // GET NAME
-        
+    /* * * * * * * * * * *
+     *                   *
+     *   REQUEST NAME    *
+     *                   *
+     * * * * * * * * * * */
+    function request_name() 
+    {
         $reply = "Welcome to Battle Royale! What is your name?";
         $_SESSION['awaiting_person_name'] = true;
         
         send_reply($reply);
     }
     
-    
-    $apn = $_SESSION['awaiting_person_name'];
-    if ( $apn ) {
+    /* * * * * * * * * * *
+     *                   *
+     *   RECEIVE NAME    *
+     *                   *
+     * * * * * * * * * * */
+    if ( $_SESSION['awaiting_person_name'] ) 
+    {
         $person_name = $body;
+        // TODO_CHRIS
+        // put_person($person_name);
         
-        $reply = "Welcome, " . $person_name . "! ";
+        $_SESSION['awaiting_person_name'] = false;
+    }
+    
+    /* * * * * * * * * * * *
+     *                     *
+     *   RECEIVE CREATE    *
+     *                     *
+     * * * * * * * * * * * */
+    if ( substr($body, 0, 6) == "CREATE") 
+    {
+        if ($_SESSION['awaiting_person_name'])
+            send_reply("CREATE not a valid name. Try again.");
+        if ($_SESSION['awaiting_game_name'])
+            send_reply("CREATE not a valid name. Try again.");
+        
+        $_SESSION['awaiting_create_game'] = true;
+
+        // TODO_CHRIS::
+        // $person = get_person($from);
+        // if (!person)
+        request_name(); // if no entry, get person's name
+        
+        // TODO_CHRIS::
+        // $person_name = $person.name;
+        
+        // if ( $person.status == "ACTIVE" )
+        // send_reply("are you sure?");
+    }
+    
+    /* * * * * * * * * * * * *
+     *                       *
+     *   REQUEST GAME TITLE  *
+     *                       *
+     * * * * * * * * * * * * */
+    if ( $_SESSION['awaiting_create_game'] ) 
+    {
+        // TODO_CHRIS
+        // put_participant($person, ADMIN)
+        
+        $reply  = "Welcome, " . $person_name . "! ";
         $reply .= "What is the name of your game? ";
         $reply .= "e.g. PtonStartupWeekend2011 or psw2011";
         
-        $_SESSION['awaiting_person_name'] = false;
+        $_SESSION['awaiting_create_game'] = false;
         $_SESSION['awaiting_game_name'] = true;
         
         send_reply($reply);
     }
     
-    $agn = $_SESSION['awaiting_game_name'];
-    if ( strlen($agn) && $agn ) {
+    /* * * * * * * * * * * * *
+     *                       *
+     *   RECEIVE GAME TITLE  *
+     *                       *
+     * * * * * * * * * * * * */
+    if ( $_SESSION['awaiting_game_name'] ) 
+    {
         $game_name = $body;
+        // TODO_CHRIS
+        // put_game($game_name);
+        
         $reply = "Your game has been created with name " . $game_name . ". ";
         $reply .= "Please tell players to text JOIN " . $game_name . " to enter game.";
         
