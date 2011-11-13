@@ -39,7 +39,7 @@
     
     
     $apn = $_SESSION['awaiting_person_name'];
-    if ( strlen($apn) && $apn ) {
+    if ( $apn ) {
         $person_name = $body;
         
         $reply = "Welcome, " . $person_name . "! ";
