@@ -168,7 +168,7 @@
         // put_participant($person, PLAYER, $game);
         
         $reply  = "Welcome, " . $person_name . "! ";
-        $reply .= "You are now in game, " . $game_name;
+        $reply .= "You are now in game, " . $game_name . ". ";
         $reply .= "You will receive a text once the game begins.";
         
         $_SESSION['join_dialog'] = false;
