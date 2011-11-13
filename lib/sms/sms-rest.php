@@ -1,7 +1,7 @@
 <?php
 
 	// include the PHP TwilioRest library
-	require "Services/Twilio.php";
+	require "../twilio-php/Services/Twilio.php";
 
 	// set our AccountSid and AuthToken
 	$AccountSid = "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
@@ -12,9 +12,7 @@
 
 	// make an associative array of people we know, indexed by phone number
 	$people = array(
-		"+14158675309"=>"Curious George",
-		"+14158675310"=>"Boots",
-		"+14158675311"=>"Virgil",
+		"+13057736239"=>"Curious George",
 	);
 
 	// iterate over all our friends
@@ -22,7 +20,7 @@
 
 		// Send a new outgoinging SMS by POSTing to the SMS resource */
 		$sms = $client->account->sms_messages->create(
-			"YYY-YYY-YYYY",
+			"305-773-6239",
 			$number,
 			"Hey $name, Monkey Party at 6PM. Bring Bananas!"
 		);
