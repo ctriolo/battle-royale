@@ -126,7 +126,6 @@
      *   RECEIVE JOIN    *
      *                   *
      * * * * * * * * * * */
-    /*
     if ( $tokens[0] == "JOIN") 
     {
         if ($_SESSION['awaiting_person_name'])
@@ -134,11 +133,11 @@
         if ($_SESSION['awaiting_game_name'])
             send_reply("JOIN not a valid name. Try again.");
                 
-        $tokens = preg_split ("/\s+/", $body);
         if (count($tokens) != 2)
-            ;
+            ; // ERROR
         
-        $_SESSION['awaiting_join_game'] = true;
+        $_SESSION['join_dialog'] = true;
+        $_SESSION['game_name'] = tokens[1];
         
         // TODO_CHRIS::
         // $person = get_person($from);
@@ -151,7 +150,28 @@
         // if ( $person.status == "ACTIVE" )
         // send_reply("are you sure?");
     }
-    */
+    
+    /* * * * * * * * * * * * *
+     *                       *
+     *   REQUEST GAME TITLE  *
+     *                       *
+     * * * * * * * * * * * * */
+    if ( $_SESSION['join_dialog'] ) 
+    {
+        $game_name = $_SESSION['game_name'];
+
+        // TODO_CHRIS
+        // $game = get_game($game_name);
+        // put_participant($person, PLAYER, $game);
+        
+        $reply  = "Welcome, " . $person_name . "! ";
+        $reply .= "You are now in game, " . $game_name;
+        $reply .= "You will receive a text once the game begins.";
+        
+        $_SESSION['join_dialog'] = false;
+        
+        send_reply($reply);
+    }
     
     // JOIN GAME
     // START GAME
