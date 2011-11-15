@@ -122,4 +122,14 @@ define('SMS_RESPONSE_HELP',
 define('SMS_RESPONSE_DERP',
        'I don\'t understand, please text HELP to retrieve a list of commands');
 
+// Call Respones
+define('CALL_RESPONSE_FIRST_TARGET',
+       'Hello %s. Your mission is to eliminate %s. If you succeed with your mission, text the word \'kill\' to this number. Goodbye.');
+define('CALL_RESPONSE_NEXT_TARGET',
+       'Impressive. Your next target is %s. Upon elimination text the word \'kill\' to this number.');
+define('CALL_RESPONSE_ELIMINATED',
+       'You have been eliminated. Better luck next time.');
+
+// Call URLs
+define('CALL_URL_FIRST_TARGET', 'http://107.22.181.129/call/first_target.php');
 ?>

@@ -23,6 +23,17 @@ session_start();
 
 
 /**
+ * makes a call to a specific number
+ *
+ * @param  to   string  number in the form of "+18005551234" 
+ * @param  url  string  url of the response
+ */
+function make_call($to, $url) {
+  $client = new Services_Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  $client->account->calls->create(TWILIO_PHONE_NUMBER, $to, $url);
+}
+
+/**
  * sends an sms to a specific number
  *
  * @param  to    string  number in the form of "+18005551234" 
@@ -227,6 +238,7 @@ function process_begin($from, $body) {
 			 array('target_id' => $target['_id']));
     update_participants(array('_id' => $target['_id']), 
 			array('killer_id' => $current['_id']));
+    make_call($current['phone'], CALL_URL_FIRST_TARGET);
     send_sms($current['phone'],
 	     SMS_RESPONSE_BEGIN_ANNOUNCE_TARGET,
 	     $current['name'],
