@@ -1,328 +1,452 @@
 <?php
+/**
+ * sms-reply.php
+ *
+ * Appropriately respond to incoming text messages.
+ */
 
 
-$keywords = " CREATE JOIN BEGIN KILL";
+/************
+ * INCLUDES *
+ ************/
 
-// Post values
-$to = $_REQUEST['To'];
-$from = $_REQUEST['From'];
-$body = $_REQUEST['Body'];
-$body = trim($body);
 
-$tokens = $tokens = preg_split("/\s+/", $body);
-
-// Connect to Mongo, Set up Collections
-$m = new Mongo();
-$db = $m->battle_royale;
-$people = $db->people;
-$participants= $db->participants;
-$games = $db->games;
-
+require '../lib/twilio-php/Services/Twilio.php';
+require 'constants.php';
+require 'database.php';
 session_start();
 
-function send_reply($str) {
-  header("content-type: text/xml");
-  echo "<?xml version=\"1.0\" encoding=\"UTF-8\"" . chr(63) . ">\n";
-        echo "<Response>\n<Sms>";
-        echo $str;
-        echo "\n</Sms>\n</Response>\n";
-        exit();
+
+/********************
+ * HELPER FUNCTIONS *
+ ********************/
+
+
+/**
+ * sends an sms to a specific number
+ *
+ * @param  to    string  number in the form of "+18005551234" 
+ * @param  msg   format-string message to be sent
+ * @param  args  variable number of args for the format string
+ */
+function send_sms(/*$to, $msg*/) {
+  $args = func_get_args();
+  $to = array_shift($args);
+  $fmsg = array_shift($args);
+  $msg = vsprintf($fmsg, $args);
+
+  // instantiate a new Twilio Rest Client
+  $client = new Services_Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  $client->account->sms_messages->create(TWILIO_PHONE_NUMBER, $to, $msg);
+}					 
+
+
+/**
+ * sends a reply to the phone who sent us a text
+ * IMPORTANT: THIS CAUSES THE THREAD TO EXIT
+ *
+ * @param  msg   format-string to reply with
+ * @param  args  a variable number of args to be fed into the format string 
+ */
+function send_reply(/*$msg*/) {
+  $args = func_get_args();
+  $fmsg = array_shift($args);
+  $msg = vsprintf($fmsg, $args);
+
+  send_sms($_REQUEST['From'], $msg);
+  exit();
 }
 
 
-    
-$person_name = "";
-    
-$awaiting = false;
-if ($_SESSION['awaiting_person_name'] || $_SESSION['awaiting_game_name'])
-  $awaiting = true;
-if ( $awaiting && strpos($keywords, $tokens[0]) )
-  send_reply($tokens[0] . " not a valid name");
-        
+/**
+ * is the this person active in a game
+ *
+ * @param   phone  string  the phone number of the person
+ * @return  bool   is this person an active admin  
+ */
+function is_active_participant($phone) {
+  $participant = find_participant(array('phone' => $phone,
+					'status' => PARTICIPANT_STATUS_ALIVE));
+  return $participant;
+}
 
-    
-//$from = "+13057736239";
-//$body = "CREATE";
 
-/* * * * * * * * * * *
- *                   *
- *   REQUEST NAME    *
- *                   *
- * * * * * * * * * * */
-function request_name() 
-{
-  $reply = "Welcome to Battle Royale! What is your name?";
-  $_SESSION['awaiting_person_name'] = true;
+/**
+ * is the this person an active admin
+ *
+ * @param   phone  string  the phone number of the person
+ * @return  bool   is this person an active admin
+ */
+function is_active_admin($phone) {
+  return find_game(array('phone' => $phone,
+			 '$or' => array(array('status' => GAME_STATUS_PENDING),
+					array('status' => GAME_STATUS_ACTIVE))));
+}						 
+
+
+/******************
+ * FLOW FUNCTIONS *
+ ******************/
+
+
+/**
+ * the flow which creates a new game
+ *
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_create($from, $body) {
+  $person = find_person(array('phone' => $from));
+
+  switch ($_SESSION['LOW']) {
+
+  case CREATE_STATE_INIT:
+
+    // error: don't allow active admins to create new games
+    if (is_active_admin($person['phone'])) {
+      send_reply(SMS_RESPONSE_CREATE_ERROR_ADMIN);
+    }
+
+    // error: don't allow active participants to create new games
+    if (is_active_participant($person['phone'])) {
+      send_reply(SMS_RESPONSE_CREATE_ERROR_ACTIVE);
+    }
+
+    $_SESSION['LOW'] = CREATE_STATE_RECEIVE;
+    $_SESSION['HIGH'] = SMS_STATE_CREATE;
+    send_reply(SMS_RESPONSE_CREATE_TITLE_REQUEST);
+
+  case CREATE_STATE_RECEIVE:
+    $title = $body;
+    $code = strtolower(preg_replace('/\s+/', '_', $title)); 
+
+    // error: the name they picked was a keyword
+    if (strpos(SMS_KEYWORDS, $code)) {
+      send_reply(SMS_RESPONSE_CREATE_ERROR_INVALID_TITLE, $title);
+    }
+
+    // error: check that game title doesn't already exist
+    $game = find_game(array('code' => $code)); 
+    if ($game) {
+      send_reply(SMS_RESPONSE_CREATE_ERROR_TITLE_IN_USE, $title);
+    }
+
+    // create game and reply
+    insert_game(array('title' => $title,
+		      'code' => $code,
+		      'admin' => $person['name'], 
+		      'phone' => $from, 
+		      'status' => GAME_STATUS_PENDING));
+    $_SESSION['LOW'] = SMS_STATE_NULL;    
+    $_SESSION['HIGH'] = SMS_STATE_NULL;
+    send_reply(SMS_RESPONSE_CREATE_GAME_CREATED, $title, $code, TWILIO_PHONE_NUMBER_PRETTY);
+
+  }
+}
+
+
+/**
+ * the user is added to a game after requesting to join
+ * 
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_join($from, $body) {
+
+  $tokens = preg_split("/\s+/", $body);
+
+  // error: no game name
+  if (count($tokens) < 2) {
+    send_reply(SMS_RESPOSE_JOIN_ERROR_NO_CODE);
+  }
+
+  $person =  find_person(array('phone' => $from));
+  $game = find_game(array('code' => strtolower($tokens[1])));
+
+  // error: game doesn't exist
+  if (!$game) {
+    send_reply(SMS_RESPONSE_JOIN_ERROR_NO_GAME);
+  }
+
+  // error: check that participant isn't already active in a game
+  if (is_active_participant($person['phone'])) {
+    send_reply(SMS_RESPONSE_JOIN_ERROR_ACTIVE);
+  }
+
+  // error: game has already
+  if ($game['status'] != GAME_STATUS_PENDING) {
+    send_reply(SMS_RESPONSE_JOIN_ERROR_ALREADY_BEGUN);
+  }
+
+  insert_participant(array('name' => $person['name'], 
+			   'phone' => $person['phone'], 
+			   'game_id' => $game['_id'], 
+			   'status' => PARTICIPANT_STATUS_ALIVE,
+			   'kills' => 0,
+			   'escapes' => 0));
+  send_sms($game['phone'],
+	   'ADMIN: '.SMS_RESPONSE_JOIN_ACTIVITY,
+	   $person['name'],
+	   $game['title']);
+  send_reply(SMS_RESPONSE_JOIN_SUCCESSFUL, $person['name'], $game['title']);
+}
+
+
+/**
+ * the game that the user admins will begin 
+ * 
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_begin($from, $body) {
+  $game = find_game(array('phone' => $from));
+
+  // error: you are not the admin
+  if (!$game) {
+    send_reply(SMS_RESPONSE_BEGIN_NOT_ADMIN);
+  }
+
+  // error: the game has already begun
+  if ($game['status'] == GAME_STATUS_ACTIVE) {
+    send_reply(SMS_RESPONSE_BEGIN_ALREADY_BEGUN);
+  }
+
+  // fetch every participant ($cursor is not garunteed to fetch every one)
+  $cursor = find_participants(array('game_id' => $game['_id']));
+  $game_participants = array();
+  foreach ($cursor as $participant) {
+    $game_participants[] = $participant;
+  }
+
+  // update every participants' target
+  shuffle($game_participants);
+  for ($i = 0; $i < count($game_participants); $i++) {
+    $current = $game_participants[$i];
+    $target = $game_participants[$i+1 == count($game_participants) ? 0 : $i+1];
+    update_participants(array('_id' => $current['_id']), 
+			 array('target_id' => $target['_id']));
+    update_participants(array('_id' => $target['_id']), 
+			array('killer_id' => $current['_id']));
+    send_sms($current['phone'],
+	     SMS_RESPONSE_BEGIN_ANNOUNCE_TARGET,
+	     $current['name'],
+	     $target['name']);
+  }
+
+  // update the game's status
+  update_games(array('_id' => $game['_id']),
+	       array('status' => GAME_STATUS_ACTIVE));
+    
+  exit();
+}
+
+
+/**
+ * marks the user's target, and asks the victim for confirmation
+ * 
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_kill($from, $body) {
+  $current = find_participant(array('phone' => $from,
+				    'status' => PARTICIPANT_STATUS_ALIVE));
+
+  // error: not in a game
+  if (!$current) {
+    send_reply(SMS_RESPONSE_KILL_ERROR_NO_GAME);
+  }    
+
+  $game = find_game(array('_id' => $current['game_id']));
+
+  // error: the game hasn't started
+  if ($game['status'] == GAME_STATUS_PENDING) {
+    send_reply(SMS_RESPONSE_KILL_ERROR_GAME_PENDING);
+  }    
+
+  // error: already dead
+  // TODO: query is conditioned on being alive so this would never happen remove?
+  if ($current['status'] == PARTICIPANT_STATUS_DEAD) {
+    send_reply(SMS_RESPONSE_KILL_ERROR_DEAD);
+  }    
   
-  send_reply($reply);
+  // request confirmation
+  $target = find_participant(array('_id' => $current['target_id']));
+  update_participants(array('_id' => $target['_id']),
+		      array('confirm' => true));
+  send_sms($target['phone'], SMS_RESPONSE_KILL_CONFIRM_REQUEST);
+  send_reply(SMS_RESPONSE_KILL_CONFIRM_REQUESTED);
 }
 
-/* * * * * * * * * * *
- *                   *
- *   RECEIVE NAME    *
- *                   *
- * * * * * * * * * * */
-if ( $_SESSION['awaiting_person_name'] ) 
-  {
-    $person_name = $body;
-    $person = array('name' => $person_name, 'phone' => $from);
-    $people->insert($person);
-    
-    $_SESSION['awaiting_person_name'] = false;
-  }
 
-/* * * * * * * * * * * *
- *                     *
- *   RECEIVE CREATE    *
- *                     *
- * * * * * * * * * * * */
-if ( $tokens[0] == "CREATE" ) 
-  {
-    // HANDLE ERROR
-    // if person exists as active participant, ask if sure? 
-    // (can only participate in one game)
-    
-    $_SESSION['create_dialog'] = true;
-    
-    $person = $people->findOne(array('phone' => $from));
-    if (!$person) request_name(); // if no entry, get person's name
-    
-    $person_name = $person['name'];
-    
-    // HANDLE ERROR
-    // if ( $person.status == "ACTIVE" )
-    // send_reply("are you sure?");
-  }
+/**
+ * responds to the response of the person who may have been eliminated
+ * 
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_confirm($from, $body) {
+  $current = find_participant(array('phone' => $from,
+				    'status' => PARTICIPANT_STATUS_ALIVE));
+  $killer = find_participant(array('_id' => $current['killer_id']));
+  $target = find_participant(array('_id' => $current['target_id']));
 
-/* * * * * * * * * * * * *
- *                       *
- *   REQUEST GAME TITLE  *
- *                       *
- * * * * * * * * * * * * */
-if ( $_SESSION['create_dialog'] ) 
-  {
-    $reply  = "Welcome, " . $person_name . "! ";
-    $reply .= "What is the name of your game? ";
-    $reply .= "e.g. PtonStartupWeekend2011 or psw2011";
-    
-    $_SESSION['create_dialog'] = false;
-    $_SESSION['awaiting_game_name'] = true;
-    
-    send_reply($reply);
-  }
+  if ($body == "y") {
+    // confirmation accepted
+    update_participants(array('_id' => $current['phone']),
+			array('confirm' => false,
+			      'status' => PARTICIPANT_STATUS_DEAD));
+    update_participants(array('_id' => $target['_id']),
+			array('killer_id' => $current['killer_id'],
+			      'escapes' => $killer['escapes']+1));
+    update_participants(array('_id' => $killer['_id']),
+			array('target_id' => $current['target_id'],
+			      'kills' => $killer['kills']+1));
+    // TODO: call the victim with this info
+    send_sms($current['phone'], SMS_RESPONSE_CONFIRM_VICTIM_ACCEPTED);
+    if ($target['_id'] == $killer['_id']) {
+      // the game is over
 
-/* * * * * * * * * * * * *
- *                       *
- *   RECEIVE GAME TITLE  *
- *                       *
- * * * * * * * * * * * * */
-if ( $_SESSION['awaiting_game_name'] ) 
-  {
-    $game_name = $body;
-    $game = array('title' => $game_name, 
-		  'admin' => $person_name, 
-		  'phone' => $from, 
-		  'status' => 'PENDING');
-    $games->insert($game);
-    
-    $reply = "Your game has been created with name " . $game_name . ". ";
-    $reply .= "Please tell players to text JOIN " . $game_name . " to $to to enter game.";
-    $reply .= "When you are ready to begin, text BEGIN.";
-    
-    $person = $people->findOne(array('phone' => $from));
-    $person_name = $person['name'];
+      // update the game and winner status
+      $game = find_game(array('_id' => $current['game_id']));
+      update_games(array('_id' => $game['_id']),
+		   array('status' => GAME_STATUS_COMPLETE));
+      update_participants(array('_id' => $killer['_id']),
+			  array('status' => PARTICIPANT_STATUS_WINNER));
 
-    $_SESSION['awaiting_game_name'] = false;
-    
-    send_reply($reply);
-  }
-    
-/* * * * * * * * * * *
- *                   *
- *   RECEIVE JOIN    *
- *                   *
- * * * * * * * * * * */
-if ( $tokens[0] == "JOIN") 
-  {
-    $participant = $participants->findOne( array('phone' => $from) );
-    if ($participant)
-      send_reply("Sorry, you have already joined a game. Please wait until your admin begins the game.");
+      // message administrator
+      send_sms($game['phone'], 
+	       'ADMIN:'.SMS_RESPONSE_CONFIRM_ANNOUNCE_WINNER,
+	       $killer['name']);
 
-    if (count($tokens) < 2)
-      send_reply('JOIN must specify which game to join, e.g. JOIN psw2011. Please try again.'); // ERROR
-    
-    $_SESSION['join_dialog'] = true;
-    $_SESSION['game_name'] = $tokens[1];
-    
-    // TODO_CHRIS::
-    $person = $people->findOne(array('phone' => $from));
-    if (!$person) request_name(); // if no entry, get person's name
-    
-    $person_name = $person['name'];
-    
-    // if ( $person.status == "ACTIVE" )
-    // send_reply("are you sure?");
-  }
+      // message the winner
+      send_sms($killer['phone'], SMS_RESPONSE_CONFIRM_ANNOUNCE_WINNER_TO_WINNER);
 
-/* * * * * * * * * * * * *
- *                       *
- *   REQUEST GAME TITLE  *
- *                       *
- * * * * * * * * * * * * */
-if ( $_SESSION['join_dialog'] ) 
-  {
-    $game_name = $_SESSION['game_name'];
-    
-    $person =  $people->findOne(array('phone' => $from));
-    $game = $games->findOne(array('title' => $game_name));
-    if ($game['status'] == 'ACTIVE')
-      send_reply('Sorry, game has already begun. Try again next time.');
-    $participants->insert(array('name' => $person['name'], 
-				'phone' => $person['phone'], 
-				'gameID' => $game['_id'], 
-				'status' => 'ALIVE',
-				'kills' => 0,
-				'escapes' => 0));
-    
-    $reply  = "Welcome, " . $person_name . "! ";
-    $reply .= "You are now in game, " . $game_name . ". ";
-    $reply .= "You will receive a text once the game begins.";
-    
-    $_SESSION['join_dialog'] = false;
-    
-    send_reply($reply);
-  }
-
-// include the PHP TwilioRest library
-require "../lib/twilio-php/Services/Twilio.php";
-// set our AccountSid and AuthToken
-$AccountSid = "AC152c59215d81468b89c8384976f2c540";
-$AuthToken = "5cea9893f16c041e3ea66a6618af8267";
-// instantiate a new Twilio Rest Client
-$client = new Services_Twilio($AccountSid, $AuthToken);
-
-
-if ( $tokens[0] == "BEGIN" )
-  {
-    // TODO_CHRIS:
-    // get the admin; make sure $from is the $admin
-    
-    $game = $games->findOne( array('phone' => $from));
-    if ($game['status'] == 'ACTIVE')
-      send_reply('Sorry, game already begun.');
-    $cursor = $participants->find( array('gameID' => $game['_id']));
-    /*
-    $players = array("+13057736239" => "Rafi",
-		     "+16094238157" => "Emily",
-		     "+16313552173" => "Chris",
-		     "+16097513474" => "Jess",
-		     );
-    */
-
-    $numbers; $names;
-    
-    $i = 0;
-    foreach ($cursor as $participant) 
-      {
-	//$game_participants[$i] = $participant;
-	$numbers[$i] = $participant['phone'];
-	$names[$i] = $participant['name'];
-	$i++;
+      // message everyone else
+      $cursor = find_participants(array('game_id' => $game['_id']));
+      foreach ($cursor as $participant) {
+	if ($participant['_id'] == $killer['_id']) continue; 
+	send_sms($participant['phone'], SMS_RESPONSE_CONFIRM_ANNOUNCE_WINNER);
       }
-    $num = $i;
+    } else {
+      // send the killer his new target
+      // TODO: call the assassin with this info
+      send_sms($killer['phone'], SMS_RESPONSE_CONFIRM_NEXT_TARGET, $target['name']); 
+    }
 
-    $index = range(0, $num-1);
-    shuffle($index);
-    
-    for ($i = 0; $i < $num; $i++) 
-      {
-	$j = $index[$i];
-	
-	$name = $names[$j];
-	$number = $numbers[$j];
-	
-	$k = $index[ $i+1 == $num ? 0 : $i+1 ];
-	$target_name = $names[$k];
-	$target_phone = $numbers[$k];
-
-	$participants->update(array('phone' => $number), 
-			      array('$set' => array('target_name' => $target_name,
-						    'target_phone' => $target_phone) ));
-	
-	if (!$to)
-	  $to = "+15415267609";
-	
-	$msg =  "Hello, " . $name . ". Your target is " . $target_name . ". ";
-	$msg .= "If you assassinate them, reply with KILL. Happy hunting!";
-	$sms = $client->account->sms_messages->create($to,
-						      $number,
-						      $msg);
-	
-	echo "$name of $number targeting $target\n";
-      }
-    
-    $games->update(array('phone' => $from),
-		   array('$set' => array('status' => 'ACTIVE') ));
-    
     exit();
+
+  } else if ($body == 'n') {
+    // confirmation rejected
+    update_participants(array('phone' => $current['phone']), array('confirm' => false));
+    send_sms($killer['phone'], SMS_RESPONSE_CONFIRM_KILLER_REJECTED);
+    send_reply(SMS_RESPONSE_CONFIRM_VICTIM_REJECTED);
+    // TODO: actually notify the admin
+  } else {
+    // lolwut, try again
+    send_reply(SMS_RESPONSE_KILL_CONFIRM_REQUEST);
   }
 
-if( $tokens[0] == "KILL" )
-  {
-    $assassin = $participants->findOne(array('phone' => $from));
-    if ($assassin['status'] == 'DEAD')
-      send_reply('Sorry, you are already dead. Stay tuned for the winner.');
+}
     
-    $target = $participants->findOne( array('phone' => $assassin['target_phone']) );
-    //send_reply("x- " . $victim['status']);
 
-    // DEADen the target. Tell them this.
-    $participants->update(array('phone' => $target['phone']),
-			  array('$set' => array('status' => 'DEAD')));
-    $target = $participants->findOne( array('phone' => $assassin['target_phone']) );
-    $sms = $client->account->sms_messages->create($to,
-						  $target['phone'],
-						  "You have been assassinated! " . 
-						  "Stay tuned for the winner.");
+/**
+ * retreives the name of the person texting us andassociates it with the number
+ *
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_name($from, $body) {
+  switch($_SESSION['LOW']) {
 
-    if ( $assassin['phone'] == $target['target_phone'] )
-      {
-	$msg = "The assassins have all perished but one. The master assassin is " . $assassin['name'] . "."; 
+  case NAME_STATE_INIT:
+    $_SESSION['LOW'] = NAME_STATE_RECEIVE;
+    send_reply(SMS_RESPONSE_NAME_REQUEST);
 
-	$game = $games->findOne( array('_id' => $assassin['gameID']) );
-	$admin = $game['phone'];
-	$sms = $client->account->sms_messages->create($to,
-						      $admin,
-						      $msg);
-	
-	send_reply("You are the last living assassin. We hereby declare you winner. CONGRATS!");
-      }
-      
-    $next_tn = $target['target_name'];
-    $next_tp = $target['target_phone'];
-    $participants->update(array('phone' => $from),
-			  array('$set' => array('target_name'  => $next_tn, 
-						'target_phone' => $next_tp) ));
+  case NAME_STATE_RECEIVE:
+    // error: the name they picked was a keyword
+    if (strpos(SMS_KEYWORDS, $body)) {
+      send_reply(SMS_RESPONSE_NAME_ERROR_INVALID_NAME);
+    }
+    
+    // insert the person into our database
+    insert_person(array('name' => $body, 'phone' => $from));
+    $_SESSION['LOW'] = SMS_STATE_NULL;
+    $_SESSION['HIGH'] = SMS_STATE_NULL;
+  }
+}
 
-    send_reply("Mission accomplished! Your next target is " . $next_tn . ".");
-    // DEADen the target. Tell them this.
-    // Congrats the winner. Give next target. Assign.
-    // If target, is self, announce winner.
-    // Give next target.
+
+/**
+ * processes the initial sms and sends it off to the correct lower level
+ * process flow function based on the state stored in $_SESSION['HIGH']
+ *
+ * @param  from  string  number that the incoming text was sent from
+ * @param  body  string  body of the incoming text
+ */
+function process_sms($from, $body) {
+  $body = trim($body);
+  $person = find_person(array('phone' => $from));
+  $participant = find_participant(array('phone' => $from,
+					'status' => PARTICIPANT_STATUS_ALIVE));
+
+  // initialization
+  if (!isset($_SESSION['HIGH'])) {
+    $_SESSION['HIGH'] = SMS_STATE_NULL;
+    $_SESSION['LOW'] = SMS_STATE_NULL;
+  }
+  
+  // we have never been texted by this person before
+  // so lets get their info
+  if (!$person) {
+    if ($_SESSION['HIGH'] != SMS_STATE_NAME) {
+      $_SESSION['HIGH'] = SMS_STATE_NAME;
+      $_SESSION['LOW'] = NAME_STATE_INIT;
+      $_SESSION['BLOCKED_MESSAGE'] = $body;
+      process_name($from, $body);
+    } else {
+      process_name($from, $body);
+      $body = $_SESSION['BLOCKED_MESSAGE'];
+    }
   }
 
-// if START
-// if not admin, invalid command
-// get list of numbers
-// randomize, assign targets
-// send out message
+  // they have been asked for a confirmation
+  if (!empty($participant['confirm'])) {
+    process_confirm($from, $body);
+  }
 
-// JOIN GAME
-// START GAME
-// REPORT KILL
-// ANNOUNCE
+  $tokens = preg_split("/\s+/", $body);
 
-send_reply("That's nice...");
+  if ($tokens[0] == SMS_KEYWORD_CANCEL) {
+    $_SESSION['HIGH'] == SMS_STATE_NULL;
+    send_reply(SMS_RESPONSE_CANCEL);
+  }
+
+  // if there is a current state go to the correct processor
+  switch ($_SESSION['HIGH']) {
+  case SMS_STATE_CREATE: process_create($from, $body);
+  default: break; 
+  }
+
+  // if there is no current high level state reset the lower level state
+  $_SESSION['LOW'] == SMS_STATE_NULL;
+
+  // if there was a keyword go to the correct processor
+  switch (strtolower($tokens[0])) {
+  case SMS_KEYWORD_CREATE: process_create($from, $body);
+  case SMS_KEYWORD_JOIN: process_join($from, $body);
+  case SMS_KEYWORD_BEGIN: process_begin($from, $body);
+  case SMS_KEYWORD_KILL: process_kill($from, $body);
+  case SMS_KEYWORD_HELP: send_reply(SMS_RESPONSE_HELP);
+  default: break;
+  }
+    
+  send_reply(SMS_RESPONSE_DERP);
+}
+
+
+// MAIN
+process_sms($_REQUEST['From'],
+	    $_REQUEST['Body']);
 
 ?>
 
