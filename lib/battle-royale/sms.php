@@ -217,7 +217,7 @@ function process_join($from, $body) {
  * @param  body  string  body of the incoming text
  */
 function process_begin($from, $body) {
-  $game = find_game(array('phone' => $from));
+  $game = find_game(array('phone' => $from, 'status' => GAME_STATUS_PENDING));
 
   // error: you are not the admin
   if (!$game) {
@@ -323,7 +323,7 @@ function process_confirm($from, $body) {
     update_participants(array('_id' => $killer['_id']),
 			array('target_id' => $current['target_id'],
 			      'kills' => $killer['kills']+1));
-    // TODO: call the victim with this info
+    make_call($current['phone'], CALL_URL_ELIMINATED);
     send_sms($current['phone'], SMS_RESPONSE_CONFIRM_VICTIM_ACCEPTED);
     if ($target['_id'] == $killer['_id']) {
       // the game is over
@@ -354,6 +354,7 @@ function process_confirm($from, $body) {
     } else {
       // send the killer his new target
       // TODO: call the assassin with this info
+      make_call($killer['phone'], CALL_URL_NEXT_TARGET);
       send_sms($killer['phone'], SMS_RESPONSE_CONFIRM_NEXT_TARGET, $target['name']);
     }
 

@@ -1,8 +1,8 @@
 <?php
 /**
- * first_target.php
+ * next_target.php
  *
- * The call that tells the assassin who his first target is.
+ * The call that tells the assassin who his next target is.
  */
 
 /************
@@ -21,5 +21,5 @@ $participant = find_participant(array('phone' => $_REQUEST['To'], 'status' => PA
 $target = find_participant(array('_id' => $participant['target_id']));
 $response = new Services_Twilio_Twiml();
 $response->pause(2);
-$response->say(sprintf(CALL_RESPONSE_FIRST_TARGET, $participant['name'], $target['name']));
+$response->say(sprintf(CALL_RESPONSE_NEXT_TARGET, $target['name']));
 print $response;

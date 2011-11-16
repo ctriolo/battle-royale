@@ -6,7 +6,7 @@
  */
 
 // Credentials
-require 'credentials.php';
+require dirname(__FILE__).'/credentials.php';
 
 // SMS Keywords
 define('SMS_KEYWORD_CREATE', 'create');
@@ -130,6 +130,11 @@ define('CALL_RESPONSE_NEXT_TARGET',
 define('CALL_RESPONSE_ELIMINATED',
        'You have been eliminated. Better luck next time.');
 
+// Sound URLs
+define('SOUND_URL_GUNSHOT', 'http://battleroyale.mobi/sound/gunshot.mp3');
+
 // Call URLs
-define('CALL_URL_FIRST_TARGET', 'http://107.22.181.129/call/first_target.php');
+define('CALL_URL_FIRST_TARGET', 'http://battleroyale.mobi/call/first_target.php');
+define('CALL_URL_NEXT_TARGET', 'http://battleroyale.mobi/call/next_target.php');
+define('CALL_URL_ELIMINATED', 'http://battleroyale.mobi/call/eliminated.php');
 ?>
