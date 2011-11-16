@@ -1,22 +1,15 @@
 <?php
-
-require_once 'constants.php';
-require_once 'database.php';
-
+$css = 'css/home.css';
 include('header.php');
-
-// decide on the content
-if (!empty($_REQUEST['code'])) {
-  $game = find_game(array('code' => $_REQUEST['code']));
-  if ($game) {
-    include('game.php');
-  } else {
-    echo '<p>Game not found try again!</p>';
-    include('home.php');
-  }
-} else {
-  include('home.php');
-}
-
+?>
+<div class='hero-unit'>
+  <h1>BATTLE ROYALE</h1>
+  <p>
+    Play or manage a game of Assassins (a.k.a. Battle Royal, KAOS, Juggernaut, Paranoia, Killer, Tag,
+    Elimination, or Circle of Death)! Receive your targets through SMS and phone calls.
+    See game stats and activity through the leaderboards.
+  </p>
+</div>
+<?php
 include('footer.php');
 ?>

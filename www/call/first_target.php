@@ -10,8 +10,8 @@
  ************/
 
 require '../../lib/twilio-php/Services/Twilio.php';
-require '../constants.php';
-require '../database.php';
+require '../../battle-royale/constants.php';
+require '../../battle-royale/database.php';
 
 /************
  * RESPONSE *
