@@ -1,7 +1,7 @@
 <?php
 
-require_once '../lib/battle-royale/constants.php';
-require_once '../lib/battle-royale/database.php';
+require_once dirname(__FILE__).'../lib/battle-royale/constants.php';
+require_once dirname(__FILE__).'../lib/battle-royale/database.php';
 
 $game = find_game(array('code' => $_REQUEST['code']));
 $title = $game['title'];

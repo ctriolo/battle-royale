@@ -9,9 +9,9 @@
  * INCLUDES *
  ************/
 
-require '../../lib/twilio-php/Services/Twilio.php';
-require '../../battle-royale/constants.php';
-require '../../battle-royale/database.php';
+require dirname(__FILE__).'../../lib/twilio-php/Services/Twilio.php';
+require dirname(__FILE__).'../../lib/battle-royale/constants.php';
+require dirname(__FILE__).'../../lib/battle-royale/database.php';
 
 /************
  * RESPONSE *
