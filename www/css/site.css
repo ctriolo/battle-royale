@@ -9,16 +9,19 @@ body {
 }
 
 .topbar-inner .container{
-  width: 680px;
+  width: 740px;
 }
 
-.container > footer p {
+footer {
+  margin: 0 auto;
+  width: 700px;
   text-align: center; /* center align it with the container */
 }
 
 .container {
-  width: 640px;
+  width: 700px;
 }
+
 
 /* The white background content wrapper */
 .content {
@@ -40,13 +43,39 @@ body {
   margin: -20px -20px 20px;
 }
 
-/* Give a quick and non-cross-browser friendly divider */
+/* Give a quick and non-cross-browser friendly divider
 .content .span4 {
   margin-left: 0;
   padding-left: 19px;
   border-left: 1px solid #eee;
 }
+*/
+
+table {
+  margin-bottom: 0px;
+}
 
 .topbar .btn {
   border: 0;
+}
+
+table td {
+  vertical-align:middle;
+}
+
+ul.facepile li {
+  display: inline;
+}
+
+ul.facepile a {
+  float: left;
+  margin-right: 3px;
+  margin-bottom: 3px;
+
+}
+
+ul.facepile a img {
+  display: block;
+  width: 32px;
+  height: 32px;
 }
