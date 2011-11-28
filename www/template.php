@@ -1,29 +1,11 @@
 <?php
 
-require_once dirname(__FILE__).'/../lib/battle-royale/constants.php';
-require_once dirname(__FILE__).'/../lib/battle-royale/database.php';
-require_once dirname(__FILE__).'/../lib/battle-royale/facebook.php';
+require_once dirname(__FILE__).'/../lib/battle-royale/br.php';
 
-$fb_user = facebook_get_user();
-if ($fb_user) {
-  $user = find_person(array('facebook_id' => $fb_user['id']));
-
-  // The first time a user is logging in
-  // insert him/her into our database
-  if (!$user) {
-    $user = array(
-      'name' => $fb_user['name'],
-      'first_name' => $fb_user['first_name'],
-      'last_name' => $fb_user['last_name'],
-      'facebook_id' => $fb_user['id'],
-      'phone' => '',
-    );
-    insert_person($user);
-  }
-}
+$user = br_get_current_user();
 
 if (page_requires_user()) {
-  if (!$fb_user) header('Location: http://battleroyale.mobi/');
+  if (!$user) header('Location: http://battleroyale.mobi/');
 }
 
 $data = page_do_plumbing();
@@ -41,6 +23,7 @@ $data = page_do_plumbing();
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
   <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-tabs.js'></script>
   <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-twipsy.js'></script>
+  <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-popover.js'></script>
   <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-modal.js'></script>
   <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-buttons.js'></script>
   <script src='http://twitter.github.com/bootstrap/1.4.0/bootstrap-dropdown.js'></script>
@@ -64,7 +47,7 @@ $data = page_do_plumbing();
     }
   ?>
   <div class='container'>
-    <div class='content'>
+    <div class='main-content'>
       <div class='page-header'>
         <?php page_get_header($data); ?>
       </div>
@@ -74,6 +57,19 @@ $data = page_do_plumbing();
   <footer>
     <p>Designed and built by Rafael Romero and Christopher Triolo.</p>
   </footer>
+  <script>
+    $(function () {
+      $("a[rel=twipsy]").twipsy({
+	live: true
+      })
+    });
+    $(function () {
+      $("[rel=popover]").popover({
+	offset: 10,
+	html: true
+      })
+    });          
+  </script>
   <?php 
     if (page_has_popups()) {
       include('popups.php');

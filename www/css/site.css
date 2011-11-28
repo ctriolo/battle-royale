@@ -24,7 +24,7 @@ footer {
 
 
 /* The white background content wrapper */
-.content {
+.main-content {
   background-color: #fff;
   padding: 20px;
   margin: 0 -20px; /* negative indent the amount of the padding to maintain the grid system */
@@ -61,6 +61,10 @@ table {
 
 table td {
   vertical-align:middle;
+}
+
+ul.facepile {
+  margin-left:0px;
 }
 
 ul.facepile li {

@@ -1,4 +1,4 @@
-<?php if ($fb_user) { ?>
+<?php if ($user) { ?>
   <div class='topbar' data-dropdown="dropdown">
     <div class='topbar-inner'>
       <div class='container'>
@@ -9,8 +9,8 @@
           <ul class="nav secondary-nav">
             <li class="menu">
               <a href="#" class="menu">
-                <img style="height:40px;width:40px;margin:-16px 0;" src='http://graph.facebook.com/<?php echo $fb_user['id']; ?>/picture?type=square' />    
-                <?php echo $fb_user['name']; ?>
+                <img style="height:40px;width:40px;margin:-16px 0;" src='http://graph.facebook.com/<?php echo $user["facebook_id"]; ?>/picture?type=square' />    
+                <?php echo $user['name']; ?>
               </a>
               <ul class="menu-dropdown">
                 <li>
@@ -39,7 +39,7 @@
                   </a>
                 </li>
                 <li class="divider"></li>
-                <li><a href="<?php echo facebook_get_log_out_url(); ?>">Log Out</a></li>
+                <li><a href="<?php echo br_get_log_out_url(); ?>">Log Out</a></li>
               </ul>
             </li>
           </ul>  
@@ -55,7 +55,7 @@
           <h3>
             <a href="index.php">Battle Royale</a>
           </h3>
-<a class="btn pull-right primary" style="margin:5px 0 0" href="<?php echo facebook_get_log_in_url(); ?>">Log In</a>          <ul class="nav secondary-nav">
+<a class="btn pull-right primary" style="margin:5px 0 0" href="<?php echo br_get_log_in_url(); ?>">Log In</a>          <ul class="nav secondary-nav">
 
           </ul>
         </div>

@@ -5,58 +5,41 @@
  * stuff
  */
 
-// INCLUDES
-
-require_once dirname(__FILE__).'/../lib/battle-royale/constants.php';
-require_once dirname(__FILE__).'/../lib/battle-royale/database.php';
-
 // PAGE FUNCTIONS
 
 function page_do_plumbing() {
-  $fb_user = facebook_get_user();
-  $user = find_person(array('facebook_id' => $fb_user['id']));
+  $errors = array();
+  $user = br_get_current_user();
 
-  if ($_REQUEST['title'] && $_REQUEST['description'] && $_REQUEST['rules']) {
-    $code = $_REQUEST['title'];
-    $code = strtolower(preg_replace("/[^A-Za-z0-9]/", "", $code));
+  if (!empty($_REQUEST['title'])) {
+    $errors[] = br_create_game(
+      $user['_id'], $_REQUEST['title'],
+      $_REQUEST['description'], $_REQUEST['rules']);
 
-    if (find_game(array('code' => $code))) {
-      $error = 'Title already in use.';
-    } else {
-      insert_game(array(
-        'title' => $_REQUEST['title'],
-	'description' => $_REQUEST['description'],
-	'rules' => $_REQUEST['rules'],
-	'code' => $code,
-	'admin_id' => $user['_id'],
-        'status' => GAME_STATUS_PENDING,
-      ));
-
-      header("Location: http://battleroyale.mobi/game.php?code=".$code);
+    if (!$errors[0]) {
+      $game = br_get_active_admin($user['_id']);
+      header("Location: http://battleroyale.mobi/game.php?code=".$game['code']);
     }
   }
-  /*
-  if (empty($_REQUEST['title'])) {
-    $error = 'Your game needs a title.';
+
+  if (!empty($_REQUEST['submit']) && empty($_REQUEST['title'])) {
+    $errors[] = 'Your game needs a title.';
   }
-  */
+
   return array(
-    'error' => $error,
+    'errors' => $errors,
   );
 }
 
 
 function page_get_scripts() {
   return array(
-    'js/jquery-1.6.2.min.js',
-    'js/jquery-ui-1.8.16.custom.min.js',
   );
 }
 
 function page_get_styles() {
   return array(
     'css/site.css',
-    'css/smoothness/jquery-ui-1.8.16.custom.css'
   );
 }
 
@@ -85,32 +68,48 @@ function page_get_header($data) {
 }
 
 function page_get_body($data) {
+  $title = isset($_REQUEST['title']) ? $_REQUEST['title'] : '';
+  $description = isset($_REQUEST['description']) ? $_REQUEST['description'] : '';
+  $rules = isset($_REQUEST['rules']) ? $_REQUEST['rules'] : '';
+
+  if ($data['errors']) {
+    foreach ($data['errors'] as $error) {
+      if ($error) {
 ?>
-  <form action="create.php" method="post">
+  <div class="alert-message error">
+      <a class="close" href="#">&times;</a>
+    <p><?php echo $error ?></p>
+  </div>
+<?php
+      }
+    }
+  }
+?>
+  <form action="create.php" method="get">
     <fieldset>
       <div class="clearfix">
         <label>Title</label>
         <div class="input">
-          <input class="xlarge" id="title" name="title" size="30" type="text">
+          <input class="xlarge" id="title" name="title" size="30" type="text" value="<?php echo $title; ?>">
         </div>
       </div>
       <div class="clearfix">
         <label for="description">Description</label>
         <div class="input">
-          <textarea class="xlarge" id="description" name="description" rows="3"></textarea>
+          <textarea class="xlarge" id="description" name="description" rows="3"><?php echo $description; ?></textarea>
         </div>
       </div>
       <div class="clearfix">
         <label for="rules">Rules</label>
         <div class="input">
-          <textarea class="xlarge" id="rules" name="rules" rows="3"></textarea>
+          <textarea class="xlarge" id="rules" name="rules" rows="3"><?php echo $rules; ?></textarea>
           <span class="help-block">
             Remember, it is up to you to enforce the rules!
           </span>
         </div>
       </div>
-      <div class="actions" style="margin:0 -20px">
-        <input type="submit" class="btn primary" value="Save changes">&nbsp;<button type="reset" class="btn">Cancel</button>
+      <div class="actions" style="margin:0 -20px -38px">
+        <input name="submit" type="submit" class="btn primary" value="Submit">
       </div>
     </fieldset>
   </form>
